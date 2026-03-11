@@ -1,0 +1,42 @@
+{
+  "feature_names": [
+    "dscr",
+    "icr",
+    "leverage",
+    "current_ratio",
+    "revenue_growth_yoy",
+    "ebitda_margin",
+    "cibil_score",
+    "promoter_holding_pct",
+    "gst_discrepancy_pct",
+    "bank_divergence_pct",
+    "web_sentiment_avg",
+    "bounce_rate",
+    "years_in_business",
+    "ltv_ratio"
+  ],
+  "n_features": 14,
+  "n_training_samples": 10000,
+  "default_rate": 0.1,
+  "trained_at": "2026-03-04T15:14:01.880595",
+  "results": {
+    "LOGISTIC": {
+      "cv_auc_mean": 0.858743380406002,
+      "cv_auc_std": 0.011862740188894732,
+      "train_auc": 0.8603191195939983,
+      "avg_precision": 0.6457060588955517
+    },
+    "XGBOOST": {
+      "cv_auc_mean": 0.8435776147396293,
+      "cv_auc_std": 0.014503066910482925,
+      "train_auc": 0.989920426963813,
+      "avg_precision": 0.9487532877919851
+    },
+    "LGBM": {
+      "cv_auc_mean": 0.8433269665710503,
+      "cv_auc_std": 0.015335234584333049,
+      "train_auc": 0.9800295813106795,
+      "avg_precision": 0.9137973816987555
+    }
+  }
+}

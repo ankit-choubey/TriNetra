@@ -1,0 +1,496 @@
+# Intelli-Credit — Frontend Architecture Report
+
+> **Project:** Intelli-Credit — AI-Powered Credit Appraisal Platform  
+> **Framework:** React 19 + Vite 7  
+> **Date:** 2026-03-07
+
+---
+
+## 1. Tech Stack & Dependencies
+
+| Category | Technology | Version |
+|----------|-----------|---------|
+| **UI Framework** | React | 19.2.4 |
+| **Bundler** | Vite | 7.3.1 |
+| **Routing** | React Router DOM | 7.13.1 |
+| **Animations** | Framer Motion | 12.34.3 |
+| **HTTP Client** | Axios | 1.13.6 |
+| **Charts** | Recharts | 3.7.0 |
+| **Icons** | Lucide React + React Icons | 0.575.0 / 5.5.0 |
+| **WebSocket** | STOMP.js + SockJS | 7.3.0 / 1.6.1 |
+| **3D Embeds** | Spline (React + Runtime) | 4.1.0 / 1.12.61 |
+| **Styling** | Vanilla CSS (per-component CSS files) | — |
+
+---
+
+## 2. Project File Structure
+
+```
+intelli-credit/
+├── index.html                    # HTML entry point
+├── vite.config.js                # Vite configuration
+├── package.json                  # Dependencies & scripts
+├── .env                          # Environment variables (VITE_API_BASE_URL)
+└── src/
+    ├── main.jsx                  # React DOM root (BrowserRouter wraps App)
+    ├── App.jsx                   # Route definitions + ApplicationProvider
+    ├── index.css                 # Global styles
+    ├── context/
+    │   └── ApplicationContext.jsx  # Global state (React Context)
+    ├── services/
+    │   ├── api.js                # Axios REST client + ApplicationService
+    │   └── websocket.js          # STOMP/SockJS real-time agent feed
+    ├── components/
+    │   ├── DashboardLayout.jsx   # Sidebar + Header layout wrapper
+    │   ├── DashboardLayout.css
+    │   ├── Sidebar.jsx           # Navigation sidebar
+    │   ├── Sidebar.css
+    │   ├── AgentFeedWidget.jsx   # Live WebSocket agent feed widget
+    │   ├── AgentFeedWidget.css
+    │   ├── ConnectionStatus.jsx  # WebSocket connection indicator
+    │   └── ConnectionStatus.css
+    └── pages/
+        ├── LandingPage.jsx       # Marketing / public landing page
+        ├── LandingPage.css
+        ├── DataIngestor.jsx      # Application form + document upload
+        ├── DataIngestor.css
+        ├── ResearchAgent.jsx     # AI intelligence hub + officer tools
+        ├── ResearchAgent.css
+        ├── RecommendationEngine.jsx  # Final decision dashboard
+        └── RecommendationEngine.css
+```
+
+---
+
+## 3. Routing Map
+
+All routes are defined in [App.jsx](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/App.jsx) and wrapped with `AnimatePresence` for page transitions:
+
+| Route | Component | Layout | Description |
+|-------|-----------|--------|-------------|
+| `/` | [LandingPage](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/LandingPage.jsx#122-440) | **None** (standalone page) | Public marketing/landing page |
+| `/ingestor` | [DataIngestor](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/DataIngestor.jsx#41-496) | [DashboardLayout](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/components/DashboardLayout.jsx#13-42) | Loan application form + document uploads |
+| `/research` | [ResearchAgent](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/ResearchAgent.jsx#9-440) | [DashboardLayout](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/components/DashboardLayout.jsx#13-42) | AI agent intelligence hub + officer inputs |
+| `/recommendation` | [RecommendationEngine](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/RecommendationEngine.jsx#68-411) | [DashboardLayout](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/components/DashboardLayout.jsx#13-42) | Final credit score, charts, AI decisions |
+
+---
+
+## 4. Global State Management — `ApplicationContext`
+
+A single React Context (`ApplicationContext`) provides all shared state and actions to the dashboard pages. **No Redux or Zustand used.**
+
+### State Variables
+
+| State | Type | Purpose |
+|-------|------|---------|
+| `applicationId` | `string \| null` | Current loan application UUID (persisted in `sessionStorage`) |
+| `ucsoData` | `object \| null` | Full application data payload from backend (UCSO = Unified Credit Scoring Object) |
+| `agentFeed` | `array` | Live WebSocket messages from AI agents (max 50, newest first) |
+| `isCreating` | `boolean` | Loading flag during application creation |
+| `createError` | `string \| null` | Error message from failed application creation |
+| `loading` | `boolean` | Loading flag during data refresh |
+| `wsConnected` | `boolean` | Whether WebSocket connection is active |
+
+### Context Actions (consumed by pages)
+
+| Action | What It Does |
+|--------|-------------|
+| [createApplication(formData)](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#27-34) | Sends applicant data to backend, stores returned `applicationId` |
+| `refreshApplication(id?)` | Fetches latest full application data |
+| [addNote(noteData)](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#42-48) | Submits a credit officer note |
+| [submitPD(pdData)](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#49-55) | Submits a Personal Discussion transcript |
+| [triggerStress(stressData)](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#56-64) | Triggers a financial stress simulation |
+| [uploadDocument(file, type, onProgress)](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#65-87) | Uploads a PDF/document via multipart form |
+| `pushAgentUpdate(update)` | Manually pushes a message to the live feed |
+
+### WebSocket Auto-Connect
+
+When `applicationId` is set, the context **automatically**:
+1. Connects to the backend WebSocket via STOMP+SockJS
+2. Subscribes to `/topic/agent-updates` (global topic)
+3. Filters messages client-side by `application_id`
+4. Pushes matching updates into `agentFeed`
+5. Auto-refreshes full application data when an agent's `status === 'completed'`
+
+---
+
+## 5. Services Layer
+
+### 5.1 REST Client — [api.js](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js)
+
+- Uses **Axios** with a configurable `BASE_URL` (from `VITE_API_BASE_URL` env var, defaults to `http://localhost:8080`)
+- Includes `ngrok-skip-browser-warning: true` header for dev tunnelling
+
+**`ApplicationService` methods:**
+
+| Method | HTTP | Endpoint | Request Body |
+|--------|------|----------|-------------|
+| [createApplication(data)](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#27-34) | POST | `/api/application` | JSON map of applicant fields |
+| [getApplication(id)](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#35-41) | GET | `/api/application/{id}` | — |
+| [addNote(id, data)](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#42-48) | POST | `/api/application/{id}/notes` | `{ author, note, timestamp }` |
+| [submitPD(id, data)](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#49-55) | POST | `/api/application/{id}/pd` | `{ interviewer, transcript, pd_date }` |
+| [triggerStress(id, data)](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#56-64) | POST | `/api/application/{id}/stress` | `{ revenue_shock_pct, interest_rate_hike_bps, working_capital_squeeze_pct, raw_material_inflation_pct }` |
+| [uploadDocument(id, file, type, onProgress)](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#65-87) | POST | `/api/files/upload` | `FormData: { file, application_id, type }` |
+
+**Document types enum (must match backend):**
+
+| Key | Label |
+|-----|-------|
+| `ANNUAL_REPORT` | Annual Report |
+| `BANK_STMT` | Bank Statement |
+| `GST_RETURN` | GST Return |
+| `ITR` | ITR Filing |
+
+### 5.2 WebSocket — [websocket.js](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/websocket.js)
+
+- Uses **STOMP.js** over **SockJS** transport
+- Connects to `{BASE_URL}/ws`
+- Subscribes to topic: `/topic/agent-updates`
+- Reconnect delay: 5000ms
+- Messages filtered client-side by `application_id`
+
+**Expected WebSocket message format (from backend):**
+
+```json
+{
+  "application_id": "uuid-string",
+  "agent": "Agent Name",
+  "status": "COMPLETED | RUNNING | IN_PROGRESS | FAILED | ERROR",
+  "message": "Human-readable status text",
+  "timestamp": "ISO-8601 datetime"
+}
+```
+
+---
+
+## 6. Page-by-Page Breakdown
+
+### 6.1 Landing Page (`/`)
+
+**File:** [LandingPage.jsx](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/LandingPage.jsx) + [LandingPage.css](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/LandingPage.css) (~440 lines JSX, ~19KB CSS)
+
+**Purpose:** Public-facing marketing page. No authentication required. Does NOT use [DashboardLayout](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/components/DashboardLayout.jsx#13-42).
+
+**Sections (top → bottom):**
+
+| Section | Key Features |
+|---------|-------------|
+| **Cursor Glow** | Full-page cursor-following acid-green radial glow (Framer Motion spring physics) |
+| **Background Shapes** | Two parallax-scrolling decorative shapes |
+| **Glassmorphism Navbar** | Brand logo ("Intelli-Credit"), links to `#solutions`, `#platform`, `#integrations`, CTA → `/ingestor` |
+| **Hero Section** | Giant animated titles ("Decisive. Intelligent. Capital."), description text, "Start Analysis" CTA, video play button |
+| **Hero Metric Cards** | 3D tilt cards showing: Capital Deployed ($4.2B+), Faster Approvals (85%), Accuracy Rate (99.1%) |
+| **Dashboard Preview** | Glassmorphic card with mock bar chart, "Composite Risk Rating: A+", "Recommended Limit: $12.5M", "Decision: Approved ✓" |
+| **Ticker Tape** | Horizontally scrolling text: "AUTOMATED APPRAISAL • PREDICTIVE RISK • FINANCIAL INGESTION • CREDIT AI" |
+| **Core Modules** | Editorial grid with 3 cards linking to the 3 dashboard modules (Data Ingestor, Research Agent, Recommendations) — includes Unsplash corporate imagery |
+| **Features** | Split-layout: sticky left column + scrolling right column with 4 feature blocks (Security, Compliance, ML Models, Borderless) |
+| **Integrations** | Brand logo pills: Salesforce, SAP ERP, Oracle DB, AWS S3, Stripe |
+| **Footer** | CTA banner + footer links (Security, Privacy, Terms) |
+
+**Reusable sub-components defined inline:**
+- [CursorGlow](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/LandingPage.jsx#15-42) — mouse-following glow effect
+- [TiltCard](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/LandingPage.jsx#43-88) — 3D CSS perspective tilt on mouse move
+- [AnimatedSection](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/LandingPage.jsx#89-106) — scroll-triggered fade-up section wrapper
+- [TickerTape](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/LandingPage.jsx#107-121) — infinite horizontal scroll marquee
+
+---
+
+### 6.2 Data Ingestor Page (`/ingestor`)
+
+**File:** [DataIngestor.jsx](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/DataIngestor.jsx) + [DataIngestor.css](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/DataIngestor.css) (~496 lines JSX, ~14KB CSS)
+
+**Purpose:** Step 1 in the credit appraisal workflow. Create a loan application and upload the required 4 financial documents.
+
+**Two-phase workflow:**
+
+#### Phase 1 — Application Form (shown when NO `applicationId` exists)
+
+A **14-field form** in a 2-column grid layout:
+
+| Field Key | Label | Type | Required |
+|-----------|-------|------|----------|
+| `name` | Company / Applicant Name | text | ✅ |
+| `business_name` | Business Name | text | ✅ |
+| `pan` | PAN Number | text | ✅ |
+| `cin` | CIN | text | ✅ |
+| `mobile` | Mobile Number | tel | ✅ |
+| `email` | Email Address | email | ✅ |
+| `gst_number` | GST Number | text | ✅ |
+| `loan_amount` | Loan Amount (₹) | number | ✅ |
+| `loan_type` | Loan Type | text | ✅ |
+| `annual_turnover` | Annual Turnover (₹) | number | ✅ |
+| `sector` | Industry Sector | text | ✅ |
+| `incorporation_year` | Incorporation Year | number | ❌ |
+| `employee_count` | Employee Count | number | ❌ |
+| `requested_tenure_months` | Requested Tenure (months) | number | ❌ |
+
+**On submit:** numeric fields are converted to `Number`, empty optional fields removed, then sent to backend. On success, `applicationId` is stored.
+
+#### Phase 2 — Document Uploads (shown AFTER `applicationId` exists)
+
+**Application ID Badge** — displayed at top after creation
+
+**4 Individual Document Upload Slots (in a grid):**
+
+Each slot supports:
+- Drag-and-drop
+- File selection dialog (accepts `.pdf, .xlsx, .csv, .xls, .doc, .docx`)
+- Individual upload with progress bar
+- Status indicators: idle → selected → uploading → completed / error
+- Re-upload capability
+- "Upload All Selected" batch button
+
+| Slot | Key | Description |
+|------|-----|-------------|
+| 📄 Annual Report | `ANNUAL_REPORT` | Company annual financial report |
+| 🏦 Bank Statement | `BANK_STMT` | 12-month bank statement |
+| 📊 GST Return | `GST_RETURN` | GST return filings |
+| 📋 ITR Filing | `ITR` | Income Tax Return |
+
+**Combined Upload Section:**
+- Alternative single PDF upload for all 4 documents combined
+- Same drag-and-drop + progress UX
+- Uploads as `ANNUAL_REPORT` type
+
+**Summary Cards (bottom):**
+- 4 stat cards: Uploaded count, Selected count, Failed count, Required total (always 4)
+
+---
+
+### 6.3 Research Agent Page (`/research`)
+
+**File:** [ResearchAgent.jsx](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/ResearchAgent.jsx) + [ResearchAgent.css](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/ResearchAgent.css) (~440 lines JSX, ~12KB CSS)
+
+**Purpose:** Step 2 — the AI intelligence hub. Displays live agent results, risk scoring, and provides credit officer input tools.
+
+**Guard:** If no `applicationId`, shows a "No Application Found" message directing user to Data Ingestor.
+
+**Layout:** 2-column grid (`research-grid`)
+
+#### Left Column — Live Agent Intelligence Feed
+
+| Element | Description |
+|---------|-------------|
+| **Alert Banner** | Shown when `defaultProb` (default probability) exists — displays risk classification from AI Risk Agent |
+| **Feed Header** | "Live Agent Intelligence Feed" with Refresh button |
+| **Feed Items** | Expandable accordion items from `agentFeed` (WebSocket). Each shows: icon (color-coded by status), agent name, status, timestamp. Click to expand for full message body. Falls back to static "Awaiting Agent Results" message when no feed. |
+| **AgentFeedWidget** | Embedded WebSocket live feed component (see Components section) |
+
+#### Right Column — Officer Input Tools
+
+| Card | Purpose | Fields Sent |
+|------|---------|-------------|
+| **Risk Score Card** | Animated SVG ring showing AI confidence score (0–100). Color-coded: ≥75 green (Low Risk), ≥50 yellow (Medium), <50 red (High). Recalibrate button triggers data refresh. | — (display only) |
+| **Credit Officer Notes** | Input for officer observations. Submits via [addNote()](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/services/api.js#42-48). Shows list of previously submitted notes. | `{ author, note, timestamp }` |
+| **Personal Discussion (PD)** | Interview transcript submission form. Fields: Interviewer name, date, transcript text. | `{ interviewer, transcript, pd_date }` |
+| **Stress Simulation** | 4 numeric parameter sliders for financial scenario testing. | `{ revenue_shock_pct, interest_rate_hike_bps, working_capital_squeeze_pct, raw_material_inflation_pct }` |
+
+**Stress Simulation defaults:**
+- Revenue Shock: -20%
+- Interest Rate Hike: 200 bps
+- Working Capital Squeeze: -15%
+- Raw Material Inflation: 10%
+
+---
+
+### 6.4 Recommendation Engine Page (`/recommendation`)
+
+**File:** [RecommendationEngine.jsx](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/RecommendationEngine.jsx) + [RecommendationEngine.css](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/pages/RecommendationEngine.css) (~411 lines JSX, ~10KB CSS)
+
+**Purpose:** Step 3 — final decision output dashboard with visualizations and CAM report generation.
+
+**Guard:** If no `applicationId`, shows "No Application Found" message.
+
+**Auto-refresh:** Polls backend every 30 seconds if `ucsoData.risk` is empty/incomplete.
+
+**Sections (top → bottom):**
+
+#### Score Cards Row (4 cards)
+
+| Card | Data Source | Display |
+|------|------------|---------|
+| **Intelli-Credit Score** | `derived_features.credit_score` or `risk.agent_confidence × 900` | Value / 900 |
+| **Loan Amount** | `applicant.loan_amount` | Formatted in Lakhs (₹) |
+| **Interest Rate** | `derived_features.suggested_rate` | Percentage |
+| **Risk Assessment** | `risk.default_probability` + `risk.risk_grade` | Low/Medium/High + Grade |
+
+#### Main Grid (2 columns)
+
+**Left — AI Decision Logic Panel:**
+- Displays SHAP (Shapley Additive Explanations) values from `ucsoData.risk.shap_values`
+- Each SHAP feature rendered as an item with icon, title, and contribution percentage
+- Falls back to placeholder items if no SHAP data available
+- **"Generate CAM Report" button** — triggers CAM generation (currently frontend-only state toggle)
+- When generated: shows download card for `CAM_Report.pdf`
+
+**Right — Charts Panel:**
+
+| Chart | Library | Data Source |
+|-------|---------|-------------|
+| **Assessment Breakdown** (Bar Chart) | Recharts `BarChart` | Cash Flow, Debt Ratio, Market Position, Management Score, Compliance — from `ucsoData.derived_features`, `ucsoData.financials`, `ucsoData.compliance` |
+| **Risk Distribution** (Donut Chart) | Recharts `PieChart` | Strong/Moderate/Weak distribution — derived from `risk.agent_confidence` |
+
+**Agent Feed Widget** — embedded below the charts
+
+**Activity Log Section:**
+- Recent activity derived from `agentFeed` (last 8 items)
+- Each item shows: status dot (color-coded), agent name, message, timestamp
+- Refresh button
+
+---
+
+## 7. Shared Components
+
+### 7.1 [DashboardLayout](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/components/DashboardLayout.jsx#13-42)
+
+**Used by:** DataIngestor, ResearchAgent, RecommendationEngine
+
+Structure:
+```
+┌────────────────────────────────────────────┐
+│  Sidebar  │  Header (title + subtitle +    │
+│           │  ConnectionStatus + Search +    │
+│           │  Notifications)                │
+│           │────────────────────────────────│
+│           │  {children} (page content)     │
+│           │  (animated via Framer Motion)  │
+└────────────────────────────────────────────┘
+```
+
+### 7.2 [Sidebar](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/components/Sidebar.jsx#14-72)
+
+Fixed left navigation with 5 items:
+
+| Label | Icon | Links To |
+|-------|------|----------|
+| Dashboard | LayoutDashboard | `/ingestor` |
+| Ingestion | Upload | `/ingestor` |
+| Research | Search | `/research` |
+| Decisions | Gavel | `/recommendation` |
+| Export CAM | FileOutput | `/recommendation` |
+
+- Active item has a spring-animated indicator (Framer Motion `layoutId`)
+- Brand: "IC" icon + "Intelli-Credit" + "AI Platform" badge
+- Static user avatar: "Alex Morgan — Senior Analyst"
+
+### 7.3 [AgentFeedWidget](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/components/AgentFeedWidget.jsx#6-70)
+
+A self-contained WebSocket feed display:
+- Shows connection status (Connected / Offline) with `Wifi`/`WifiOff` icons
+- Lists `agentFeed` items from context with animated entry/exit
+- Each item: status dot (color-coded), agent name, status badge, message, timestamp
+- Empty state: "Waiting for agent updates…"
+
+### 7.4 [ConnectionStatus](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/src/components/ConnectionStatus.jsx#5-20)
+
+Minimal badge in the dashboard header:
+- Shows `Wifi + "Live"` when WebSocket connected
+- Shows `WifiOff + "Offline"` when disconnected
+- Hidden when no `applicationId` exists
+
+---
+
+## 8. Data Flow Summary
+
+```
+┌──────────────┐    Form Submit     ┌────────────────────┐
+│  DataIngestor │ ─────────────────▶ │  POST /api/app     │
+│  (Step 1)     │                    │  → returns appId   │
+│               │ ◀──── response ─── └────────────────────┘
+│               │                    ┌────────────────────┐
+│               │ ─── File Upload ──▶│  POST /api/files   │
+│               │                    │  (multipart)       │
+└──────┬───────┘                    └────────────────────┘
+       │ appId stored in Context + sessionStorage
+       │
+       │ WebSocket auto-connects to /ws
+       │ Subscribes to /topic/agent-updates
+       ▼
+┌──────────────┐    Officer Note    ┌────────────────────┐
+│ ResearchAgent │ ─────────────────▶│  POST .../notes    │
+│  (Step 2)     │    PD Transcript ─▶│  POST .../pd       │
+│               │    Stress Test ───▶│  POST .../stress   │
+│               │                    └────────────────────┘
+│               │ ◀── WebSocket ─── agent status updates
+└──────┬───────┘
+       │ Context auto-refreshes on agent 'completed' status
+       ▼
+┌──────────────────┐  GET /api/app/{id}  ┌────────────────┐
+│ RecommendationEng│ ──────────────────▶ │  Backend       │
+│  (Step 3)         │ ◀── ucsoData ──── │  (full UCSO)   │
+│                   │                    └────────────────┘
+│  Renders:         │
+│  - Credit Score   │
+│  - SHAP values    │
+│  - Charts         │
+│  - CAM Report gen │
+└──────────────────┘
+```
+
+---
+
+## 9. UCSO Data Structure (expected from backend)
+
+The frontend reads these nested paths from the `ucsoData` object returned by `GET /api/application/{id}`:
+
+```
+ucsoData
+├── applicant
+│   ├── name, business_name, pan, cin, mobile, email
+│   ├── gst_number, loan_amount, loan_type
+│   ├── annual_turnover, sector, incorporation_year
+│   ├── employee_count, requested_tenure_months
+│   └── ... (any additional fields)
+├── risk
+│   ├── agent_confidence      (float 0–1, used for risk score ring)
+│   ├── default_probability   (string: "low" | "medium" | "high")
+│   ├── risk_grade            (string: e.g. "A+", "B", "C")
+│   └── shap_values           (object: { feature_name: float_contribution, ... })
+├── derived_features
+│   ├── credit_score          (number, 0–900)
+│   ├── cash_flow_score       (number, 0–100)
+│   ├── debt_ratio_score      (number, 0–100)
+│   ├── market_position_score (number, 0–100)
+│   ├── management_score      (number, 0–100)
+│   ├── suggested_rate        (number, interest rate %)
+│   └── interest_rate         (number, fallback for suggested_rate)
+├── financials
+│   ├── cash_flow_score       (fallback for derived_features)
+│   └── debt_ratio_score      (fallback for derived_features)
+├── compliance
+│   └── compliance_score      (number, 0–100)
+├── human_notes (or notes)
+│   └── [ { author, note/text, timestamp }, ... ]
+└── ... (other agent namespaces)
+```
+
+---
+
+## 10. Environment Configuration
+
+**File:** [.env](file:///d:/Hackathon%20stuff/IITH-Hackathon/intelli-credit/.env)
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `VITE_API_BASE_URL` | Backend API base URL (REST + WebSocket) | `http://localhost:8080` |
+
+WebSocket endpoint is derived as: `{VITE_API_BASE_URL}/ws`
+
+---
+
+## 11. Key UX Features
+
+| Feature | Implementation |
+|---------|---------------|
+| **Page Transitions** | `AnimatePresence` with fade + slide animations between routes |
+| **3D Tilt Cards** | CSS `perspective` + JS mouse tracking (landing page) |
+| **Cursor Glow** | `motion.div` following cursor with spring physics |
+| **Parallax Scrolling** | `useScroll` + `useTransform` on landing hero |
+| **Glassmorphism** | `backdrop-filter: blur()` on nav, cards, footer |
+| **Animated Risk Ring** | SVG circle `strokeDashoffset` animation |
+| **Live Feed Animations** | `AnimatePresence` with staggered entry for feed items |
+| **Drag & Drop Upload** | Native HTML5 drag events on document upload slots |
+| **Progress Bars** | Real-time Axios `onUploadProgress` callbacks |
+| **Session Persistence** | `applicationId` stored in `sessionStorage` to survive page reloads |
+| **Auto-refresh** | 30-second polling on Recommendation page when risk data incomplete |
+| **Ticker Marquee** | Infinite horizontal CSS animation |

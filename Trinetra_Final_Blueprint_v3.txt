@@ -1,0 +1,514 @@
+🕉  PROJECT TRINETRA
+Agentic Credit Intelligence OS — FINAL BUILD PLAN
+Version 3.0  |  Deadline: March 10  |  Intelli-Credit Challenge Aligned
+
+──────────────────────────────────────────────────────────────────────────────────────────
+Member
+Role
+Primary Agents
+Key Skill Used
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ankit
+AI/ML
+Doc Intelligence, GST, Bias, PD Transcript, Compliance
+Python, OCR, NLP, Graph
+Utkarsh
+AI/ML
+Web Intelligence, Risk, Model Selector, CAM, Stress, EWS, Monitor
+ML, SHAP, LIME, Weaviate
+Devraj
+Frontend
+React UI, Dashboard, Live Feed, Stress Sim, Replay, PD Portal
+React, WebSocket, Charts
+Sankalp
+Backend
+Spring Boot APIs, UCSO, Kafka, Auth, S3, WebSocket
+Java, Kafka, Postgres
+
+──────────────────────────────────────────────────────────────────────────────────────────
+0.  PROBLEM STATEMENT — STRICT COMPLIANCE MAP
+This section verifies every PS requirement is covered. If something is not in this table, do not build it.
+PS Requirement
+Source
+Our Solution
+Owner
+Multi-format PDF parsing
+Pillar 1
+Doc Intelligence Agent: pdfplumber + Tesseract OCR fallback + confidence scoring
+Ankit
+GST ↔ Bank Statement reconciliation
+Pillar 1
+Bank Reconciliation Sub-Agent: cross-compare GST turnover vs bank credit entries
+Ankit
+Circular trading detection
+Pillar 1
+GST Agent: networkx directed graph, cycle detection, circular_trade_index
+Ankit
+Revenue inflation detection
+Pillar 1
+Bank Recon: bank_turnover > GST_turnover × 1.3 = INFLATION FLAG
+Ankit
+ITR parsing
+Pillar 1 data sources
+Doc Agent: extract taxable income, advance tax paid, Schedule BP fields
+Ankit
+Board meeting minutes parsing
+Pillar 1 unstructured
+Doc Agent: extract key decisions, director changes, dividend declarations
+Ankit
+Rating agency report parsing
+Pillar 1 unstructured
+Doc Agent: extract rating, outlook, key rationale
+Ankit
+Shareholding pattern extraction
+Pillar 1 unstructured
+Doc Agent: extract promoter %, FII %, pledged shares %
+Ankit
+Sanction letter parsing
+Pillar 1 unstructured
+Doc Agent: extract limit, rate, covenant breaches from other bank letters
+Ankit
+Web-scale secondary research
+Pillar 2
+Web Intelligence Agent: Weaviate KB + live news + Surepass eCourt API
+Utkarsh
+MCA filing ingestion
+Pillar 2 / External
+MCA Sub-Pipeline: scrape mca.gov.in for director changes, charges, status
+Utkarsh
+Litigation history (eCourts)
+Pillar 2 / External
+Surepass eCourt CNR API: active cases, case type, severity
+Utkarsh
+Sector/regulatory headwinds
+Pillar 2 / External
+RBI circular preload in Weaviate + news sentiment tagging
+Utkarsh
+Qualitative PD notes portal
+Pillar 2 primary
+PD Transcript Agent: typed notes + Whisper audio → NER + risk adjustment
+Ankit
+CAM generation (Five Cs)
+Pillar 3
+CAM Generator Agent: python-docx, evidence-cited, Five Cs structure
+Utkarsh
+Loan limit suggestion
+Pillar 3
+Limit = requested × (1 - risk_score) with floor/ceiling logic
+Utkarsh
+Risk premium suggestion
+Pillar 3
+Rate = base_rate + (risk_score × 4.0) bps
+Utkarsh
+Explainable rejection reason
+Pillar 3 / Evaluation
+SHAP global + LIME case-specific + top 3 evidence citations in CAM
+Utkarsh
+Indian context: GSTR-2A/2B/3B
+Evaluation criterion
+GST Agent: explicitly compares 2B (static) vs 3B for ITC discrepancy
+Ankit
+Indian context: CIBIL Commercial
+Evaluation criterion
+Doc Agent: parse CIBIL report; extract score, overdue, DPD history
+Ankit
+Scanned Indian PDF accuracy
+Evaluation criterion
+Tesseract + Indian currency normalizer + confidence threshold
+Ankit
+
+HINGLISH: Yeh table PS ka cheater sheet hai. Har row ek PS requirement hai. Agar kuch is table mein nahi hai — usse build mat karo. Agar is table mein hai aur build nahi hua — woh blocker hai.
+──────────────────────────────────────────────────────────────────────────────────────────
+1.  UCSO MASTER SCHEMA v2.0  (FINALISE BEFORE ANY CODING)
+⚠  NON-NEGOTIABLE: Freeze this schema on Day 0. No agent writes code until all 4 members sign off on this JSON. One mismatch = 3 hours of integration hell.
+{   "ucso_version": 1,   "application_id": "uuid",    "applicant": {     "company_name": "", "pan": "", "gstin": "", "cin": "",     "loan_amount_requested": 0, "loan_purpose": "", "industry_sector": ""   },    "compliance": {     "status": "PENDING|PASS|FAIL",     "missing_documents": [],     "checked_at": "ISO8601"   },    "documents": {     "files": [{       "doc_id": "uuid",       "type": "ANNUAL_REPORT|BANK_STMT|GST_RETURN|ITR|BOARD_MINUTES|RATING_REPORT|SHAREHOLDING|SANCTION_LETTER|CIBIL",       "s3_key": "", "parsed": false, "confidence": 0.0,       "extracted_fields": {},       "provenance": {"page": 0, "section": ""},       "parse_errors": []     }]   },    "financials": {     "revenue_annual": [], "ebitda_annual": [], "net_profit_annual": [],     "total_debt": 0, "net_worth": 0, "interest_expense": 0, "principal_repayment": 0,     "itr_taxable_income": 0, "advance_tax_paid": 0,     "promoter_holding_pct": 0.0, "pledged_shares_pct": 0.0,     "cibil_score": 0, "cibil_overdue_amt": 0, "cibil_dpd_months": 0   },    "derived_features": {     "dscr": 0.0, "dscr_normalized": 0.0,     "icr": 0.0, "icr_normalized": 0.0,     "leverage": 0.0, "leverage_normalized": 0.0,     "ccc": 0, "ccc_normalized": 0.0,     "revenue_growth": 0.0, "revenue_growth_normalized": 0.0,     "ebitda_margin": 0.0, "ebitda_margin_normalized": 0.0,     "revenue_volatility": 0.0   },    "gst_analysis": {     "gstr2b_vs_3b_discrepancy_pct": 0.0,     "circular_trade_index": 0.0,     "suspicious_cycles": [],     "reconciliation_status": "OK|WARNING|FLAG",     "itc_mismatch_flag": false   },    "bank_reconciliation": {     "bank_credit_turnover": 0.0,     "gst_reported_turnover": 0.0,     "itr_reported_income": 0.0,     "turnover_divergence_pct": 0.0,     "revenue_inflation_flag": false,     "round_trip_transactions": [],     "avg_monthly_balance": 0.0,     "bounce_count_last_12m": 0,     "reconciliation_verdict": "OK|MISMATCH|INFLATION_SUSPECTED"   },    "mca_intelligence": {     "company_status": "ACTIVE|STRIKE_OFF|DORMANT",     "director_changes_last_2yr": [],     "charges_registered": [],     "new_charge_flag": false,     "director_din_list": [],     "last_agm_date": "",     "defaulter_flag": false   },    "web_intel": {     "promoter_news": [{       "headline": "", "source_url": "", "credibility_score": 0,       "sentiment_score": 0.0, "risk_contribution": 0.0,       "published_at": "", "entity_tags": []     }],     "litigation_records": [{       "case_no": "", "court": "", "case_type": "",       "status": "", "severity": "LOW|MEDIUM|HIGH", "source": "SUREPASS|SCRAPE"     }],     "regulatory_flags": [],     "sector_headwinds": [],     "kb_query_timestamp": "",     "kb_freshness_hours": 0   },    "pd_intelligence": {     "transcript_text": "", "source_type": "AUDIO|TEXT",     "entities_extracted": {}, "qualitative_flags": [],     "risk_adjustment": 0.0, "pd_confidence": 0.0   },    "risk": {     "score": 0.0,     "band": "LOW|MEDIUM|HIGH|REJECT",     "model_used": "LOGISTIC|XGBOOST|LGBM|RULE_FALLBACK",     "model_version": "",     "feature_vector": {},     "shap_values": {},     "lime_explanation": {},     "top_risk_factors": [],     "decision": "APPROVE|REJECT|REVIEW",     "recommended_limit": 0,     "recommended_rate_bps": 0.0,     "rejection_reasons": [],     "corrective_actions": []   },    "bias_checks": {     "counterfactual_tested": false,     "flip_features": [],     "overweight_flags": []   },    "stress_results": {     "scenarios": [       {"name": "Revenue-20%", "dscr": 0.0, "verdict": ""},       {"name": "Rate+2%", "dscr": 0.0, "verdict": ""},       {"name": "Combined", "dscr": 0.0, "verdict": ""}     ],     "worst_case_dscr": 0.0,     "survival_verdict": "SURVIVES|VULNERABLE|CRITICAL"   },    "ews_monitoring": {     "enabled": false,     "last_checked": "", "flags": [], "risk_drift": 0.0   },    "decision_confidence": {     "score": 0.0,     "data_completeness": 0.0,     "extraction_confidence": 0.0,     "kb_freshness_score": 0.0,     "model_stability_score": 0.0,     "formula": "0.30×data_completeness + 0.30×extraction_confidence + 0.20×kb_freshness + 0.20×model_stability"   },    "cam_output": {     "s3_key": "", "cma_s3_key": "",     "generated_at": "", "five_cs": {}   },    "human_notes": {"notes": []},   "audit_log": [] }
+⚠  camelCase vs snake_case: Spring Boot ObjectMapper MUST be configured with SNAKE_CASE strategy. All field names must match exactly. Do a schema handshake test on Day 0.
+⚠  Namespace Ownership Rule: Each agent PATCH only its own namespace key. Doc Agent touches: documents, financials. GST Agent touches: gst_analysis. Bank Recon touches: bank_reconciliation. NO exceptions.
+──────────────────────────────────────────────────────────────────────────────────────────
+2.  MATHEMATICAL ENGINE  (COMPLETE + FORMAL)
+This section defines ALL formulas with normalization bounds, outlier handling, and sentiment computation. This is the answer to 'walk me through your logic'.
+2.1  Feature Normalization Strategy
+All features must be normalized to [0, 1] before weighted summation. Raw values are stored separately in derived_features. Normalized values are stored in derived_features.*_normalized.
+# Normalization bounds (define in risk-agent/normalization.py) FEATURE_BOUNDS = {     # (raw_min, raw_max, risk_direction)     # risk_direction: 'inverse' = lower raw = higher risk     #                 'direct'  = higher raw = higher risk     "dscr":             (0.5,  2.5,  "inverse"),   # DSCR < 0.5 = max risk     "icr":              (1.0,  5.0,  "inverse"),     "leverage":         (0.0,  5.0,  "direct"),    # D/E > 5 = max risk     "ccc":              (0,    180,  "direct"),     # CCC days > 180 = max risk     "revenue_growth":   (-0.3, 0.4,  "inverse"),   # growth < -30% = max risk     "ebitda_margin":    (-0.1, 0.4,  "inverse"),     "gst_discrepancy":  (0.0,  0.5,  "direct"),    # discrepancy > 50% = max risk     "circular_trade":   (0.0,  0.5,  "direct"),     "litigation_count": (0,    10,   "direct"),     "news_sentiment":   (-1.0, 1.0,  "inverse"),   # -1 = very negative = high risk }  def normalize(raw_value, feat_name):     lo, hi, direction = FEATURE_BOUNDS[feat_name]     # Clip to bounds     clipped = max(lo, min(hi, raw_value))     ratio   = (clipped - lo) / (hi - lo)     # Convert to risk score: inverse = 1-ratio gives risk     return (1 - ratio) if direction == "inverse" else ratio
+2.2  Weighted Risk Score
+# Risk weights (must sum to 1.0) WEIGHTS = {     "dscr_normalized":          0.25,     "leverage_normalized":      0.18,     "revenue_growth_normalized":0.12,     "ebitda_margin_normalized": 0.10,     "gst_discrepancy_norm":     0.12,     "circular_trade_norm":      0.08,     "litigation_norm":          0.10,     "news_sentiment_norm":      0.05, } # Total = 1.00  def compute_risk_score(features: dict) -> float:     score = sum(WEIGHTS[k] * features[k] for k in WEIGHTS if k in features)     # Apply PD adjustment AFTER weighted sum     pd_adj = features.get("pd_risk_adjustment", 0.0)     return round(min(1.0, max(0.0, score + pd_adj)), 4)  # Band assignment def assign_band(score: float) -> str:     if score < 0.30: return "LOW"     if score < 0.55: return "MEDIUM"     if score < 0.75: return "HIGH"     return "REJECT"  # Limit and rate def compute_limit_and_rate(requested: float, score: float, base_rate_bps: float) -> tuple:     limit     = requested * (1 - score * 0.6)    # max 60% haircut     rate_bps  = base_rate_bps + (score * 400)    # max +400bps premium     return round(limit, 2), round(rate_bps, 2)
+2.3  Decision Confidence Formula
+Judges WILL ask how confidence is computed. Answer must be precise and mathematical.
+# decision_confidence/calculator.py  def compute_confidence(ucso: dict) -> dict:     docs     = ucso.get("documents", {}).get("files", [])     CRITICAL = ["ANNUAL_REPORT","BANK_STMT","GST_RETURN","ITR"]     present  = [d for d in docs if d["type"] in CRITICAL and d["parsed"]]     data_completeness = len(present) / len(CRITICAL)  # 0–1      confidences = [d["confidence"] for d in docs if d["parsed"] and d["confidence"] > 0]     extraction_confidence = sum(confidences)/len(confidences) if confidences else 0.0      kb_hours = ucso.get("web_intel",{}).get("kb_freshness_hours", 9999)     MAX_HOURS = 168  # 1 week     kb_freshness_score = max(0.0, 1 - (kb_hours / MAX_HOURS))      # model_stability: 1.0 if no drift detected, decrements on each drift event     model_stability_score = 1.0 if not ucso.get("risk",{}).get("drift_detected") else 0.5      # Weighted formula     score = (0.30 * data_completeness            + 0.30 * extraction_confidence            + 0.20 * kb_freshness_score            + 0.20 * model_stability_score)      return {         "score":                  round(score, 4),         "data_completeness":      round(data_completeness, 4),         "extraction_confidence":  round(extraction_confidence, 4),         "kb_freshness_score":     round(kb_freshness_score, 4),         "model_stability_score":  round(model_stability_score, 4),         "formula": "0.30×DC + 0.30×EC + 0.20×KF + 0.20×MS"     }
+2.4  News Sentiment Computation
+Currently news_sentiment = 0.10 in weight but had no computation logic. This is the formal definition.
+# web-agent/sentiment.py # pip install vaderSentiment from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer  analyzer = SentimentIntensityAnalyzer()  def score_article(headline: str, body: str = "") -> dict:     text     = f"{headline}. {body}"     scores   = analyzer.polarity_scores(text)     compound = scores["compound"]          # -1.0 to +1.0     # Normalize to risk contribution (0=no risk, 1=max risk)     risk_contribution = (1 - compound) / 2  # maps [-1,1] → [1,0]     return {         "sentiment_score":    round(compound, 4),         "risk_contribution":  round(risk_contribution, 4),         "label": "POSITIVE" if compound > 0.05 else "NEGATIVE" if compound < -0.05 else "NEUTRAL"     }  def aggregate_news_sentiment(articles: list) -> float:     if not articles: return 0.5   # neutral default     return sum(a["risk_contribution"] for a in articles) / len(articles)
+2.5  Weaviate Knowledge Scoring Pipeline
+Defines embedding model, vectorizer, similarity threshold, and caching strategy.
+# Embedding model: sentence-transformers/all-MiniLM-L6-v2 (384 dimensions, fast, free) # Vectorizer module: text2vec-transformers (self-hosted in Docker) # Similarity threshold: 0.75 (cosine) — articles below this are discarded  # weaviate-setup/schema.py COLLECTIONS = {     "NewsArticle": {         "ttl_hours": 24,         "properties": ["headline","body","source_url","credibility_score",                        "sentiment_score","risk_contribution","published_at","entity_tags"]     },     "LitigationRecord": {         "ttl_hours": 720,  # 30 days         "properties": ["company_name","pan","case_no","court","case_type",                        "status","severity","source","fetched_at"]     },     "RBICircular": {         "ttl_hours": 2160, # 90 days         "properties": ["circular_no","title","body","issued_date","sector_tags"]     },     "MCAFiling": {         "ttl_hours": 720,         "properties": ["cin","company_name","filing_type","filing_date",                        "description","risk_flag"]     } }  # Query with threshold def query_kb(client, collection: str, query_text: str, company_name: str) -> list:     result = (         client.query         .get(collection, ["headline","risk_contribution","source_url","credibility_score"])         .with_near_text({"concepts": [query_text, company_name]})         .with_where({"path":["credibility_score"],"operator":"GreaterThan","valueNumber":2})         .with_limit(10)         .with_additional(["certainty"])  # certainty = cosine similarity         .do()     )     hits = result["data"]["Get"][collection]     # Filter by threshold     return [h for h in hits if h["_additional"]["certainty"] >= 0.75]
+──────────────────────────────────────────────────────────────────────────────────────────
+3.  AGENT DEFINITIONS  (ALL 13 AGENTS — COMPLETE CONTRACTS)
+Each agent has: Event Trigger, Input Namespaces, Output Namespaces, Core Logic, Error Codes, Retry Policy.
+Agent: 1. Compliance Agent  [Owner: Ankit]
+TRIGGER: Trigger Event: application_created
+READS: Input Namespaces: applicant
+WRITES: Output Namespaces: compliance
+LOGIC: Check required documents: ANNUAL_REPORT, BANK_STMT, GST_RETURN, ITR must be present. Generate missing_documents list.
+ERRORS: DOCS_MISSING → emit checklist + notify frontend via WebSocket
+Agent: 2. Document Intelligence Agent  [Owner: Ankit]
+TRIGGER: Trigger Event: docs_uploaded, compliance_passed
+READS: Input Namespaces: documents (S3 keys)
+WRITES: Output Namespaces: documents, financials
+LOGIC: Parse all uploaded PDFs: pdfplumber for digital, Tesseract for scanned. Extract financials with confidence + provenance. Normalize Indian numbers.
+ERRORS: PARSE_LOW_CONF (<0.6) → flag for human review. PARSE_FAIL → retry with alternate parser once.
+Agent: 3. GST Reconciliation Agent  [Owner: Ankit]
+TRIGGER: Trigger Event: parsing_completed
+READS: Input Namespaces: documents (GST files)
+WRITES: Output Namespaces: gst_analysis
+LOGIC: Compare GSTR-3B ITC claimed vs GSTR-2B auto-populated. Compute discrepancy %. Build networkx graph for circular trading. Detect cycles ≤4 nodes.
+ERRORS: GST_PARSE_FAIL → flag gst_analysis.reconciliation_status=ERROR. Do not block pipeline.
+Agent: 4. Bank Reconciliation Agent  [Owner: Ankit]
+TRIGGER: Trigger Event: parsing_completed
+READS: Input Namespaces: documents (bank stmts), gst_analysis, financials
+WRITES: Output Namespaces: bank_reconciliation
+LOGIC: Extract monthly credit/debit entries from bank statements. Sum annual credit turnover. Compare: bank_turnover vs gst_turnover vs itr_income. Detect round-trip transactions. Count bounces.
+ERRORS: BANK_PARSE_FAIL → set reconciliation_verdict=UNKNOWN. Do not block pipeline.
+Agent: 5. MCA Intelligence Agent  [Owner: Utkarsh]
+TRIGGER: Trigger Event: parsing_completed
+READS: Input Namespaces: applicant.cin, applicant.pan
+WRITES: Output Namespaces: mca_intelligence
+LOGIC: Query mca.gov.in or MCA21 API with CIN. Extract: company_status, director changes in last 2 years, new charges registered. Set flags.
+ERRORS: MCA_FETCH_FAIL → use Weaviate MCAFiling collection snapshot. Log KB_STALE warning.
+Agent: 6. Web Intelligence Agent  [Owner: Utkarsh]
+TRIGGER: Trigger Event: gst_completed, bank_recon_completed
+READS: Input Namespaces: applicant, gst_analysis
+WRITES: Output Namespaces: web_intel
+LOGIC: Query Weaviate KB for news/litigation. Score articles with VADER sentiment. Surepass eCourt API for litigation. Preloaded RBI circulars for sector headwinds. Credibility filter ≥2.
+ERRORS: SCRAPE_TIMEOUT → use KB snapshot. LOW_CONFIDENCE (<0.75 cosine) → discard article.
+Agent: 7. PD Transcript Agent  [Owner: Ankit]
+TRIGGER: Trigger Event: pd_submitted
+READS: Input Namespaces: human_notes
+WRITES: Output Namespaces: pd_intelligence
+LOGIC: Audio: Whisper transcription. Text: direct. spaCy NER for entities. Keyword risk adjustment: HIGH +0.10, MEDIUM +0.05, POSITIVE -0.05.
+ERRORS: WHISPER_FAIL → accept text fallback. NER_FAIL → log warning, use raw transcript.
+Agent: 8. Model Selector Agent  [Owner: Utkarsh]
+TRIGGER: Trigger Event: web_intel_completed, mca_completed
+READS: Input Namespaces: derived_features
+WRITES: Output Namespaces: risk.model_used
+LOGIC: Feature count and distribution check. <50 samples→Logistic, tabular→XGBoost, mixed→LightGBM. Load pre-trained .pkl from S3.
+ERRORS: MODEL_NOT_FOUND → fallback RULE_FALLBACK, set risk.model_used accordingly.
+Agent: 9. Risk Agent  [Owner: Utkarsh]
+TRIGGER: Trigger Event: model_selected
+READS: Input Namespaces: derived_features, gst_analysis, bank_reconciliation, web_intel, pd_intelligence
+WRITES: Output Namespaces: risk
+LOGIC: Apply normalization. Compute weighted score. Add PD adjustment. Assign band. Compute limit+rate. Run SHAP. Run LIME. Store top 3 factors + rejection reasons.
+ERRORS: SHAP_FAIL → continue without SHAP, log warning. LIME_FAIL → continue without LIME.
+Agent: 10. Bias Agent  [Owner: Ankit]
+TRIGGER: Trigger Event: risk_generated
+READS: Input Namespaces: risk, derived_features
+WRITES: Output Namespaces: bias_checks
+LOGIC: For each top-3 SHAP feature: set to median, recompute score. If decision flips→add to flip_features, set overweight_flags.
+ERRORS: BIAS_COMPUTE_FAIL → log error, set counterfactual_tested=false. Do not block CAM.
+Agent: 11. Stress Agent  [Owner: Utkarsh]
+TRIGGER: Trigger Event: risk_generated
+READS: Input Namespaces: derived_features, financials
+WRITES: Output Namespaces: stress_results
+LOGIC: Run 3 scenarios: Revenue-20%, Rate+2%, Combined. Recalculate DSCR for each. Assign verdict per scenario and worst-case overall.
+ERRORS: STRESS_COMPUTE_FAIL → set all verdicts=UNKNOWN. Do not block CAM.
+Agent: 12. CAM Generator Agent  [Owner: Utkarsh]
+TRIGGER: Trigger Event: bias_completed AND stress_completed (counter=2)
+READS: Input Namespaces: ALL namespaces
+WRITES: Output Namespaces: cam_output
+LOGIC: Generate python-docx CAM: Five Cs. Every claim cites UCSO source (page+confidence). Rejection: add corrective actions. Generate CMA 3-year projections. Upload to S3.
+ERRORS: CAM_UPLOAD_FAIL → retry 2× with backoff. CAM_EMPTY → log and alert frontend.
+Agent: 13. Monitor/Self-Heal Agent  [Owner: Utkarsh]
+TRIGGER: Trigger Event: ALL events (subscriber)
+READS: Input Namespaces: ALL namespaces (read-only)
+WRITES: Output Namespaces: audit_log
+LOGIC: Continuously check: confidence thresholds, model drift, KB staleness, infinite loops. Switch to safe model on drift. Trigger KB refresh on stale.
+ERRORS: INFINITE_LOOP → circuit breaker after 3 repeats of same event. DRIFT → alert + fallback.
+──────────────────────────────────────────────────────────────────────────────────────────
+4.  GAP FIXES  (4 CRITICAL GAPS ADDRESSED)
+GAP 1: Bank Statement Reconciliation (NEW Agent Logic)
+PS explicitly demands: cross-leverage GST returns against bank statements to identify revenue inflation. This was entirely missing. Now formalized.
+# bank-recon-agent/reconciliation.py  def reconcile_bank_vs_gst(bank_statements: list, gst_returns: list, itr_income: float) -> dict:     # Step 1: Sum all bank credit entries (exclude inter-account transfers)     EXCLUDE_KEYWORDS = ["TRF","NEFT TRF","RTGS TRF","IMPS TRF","OWN ACCOUNT"]     bank_credit_total = sum(         entry["credit_amount"] for stmt in bank_statements         for entry in stmt["transactions"]         if entry["type"] == "CREDIT"         and not any(kw in entry.get("narration","").upper() for kw in EXCLUDE_KEYWORDS)     )      # Step 2: Sum GST reported turnover (from GSTR-1 or 3B)     gst_turnover = sum(r.get("total_taxable_turnover", 0) for r in gst_returns)      # Step 3: Divergence calculation     if gst_turnover > 0:         divergence = abs(bank_credit_total - gst_turnover) / gst_turnover     else:         divergence = 1.0   # max mismatch if GST = 0      # Step 4: Revenue inflation flag     inflation_flag = bank_credit_total > gst_turnover * 1.3      # Step 5: Detect round-trip transactions (same amount in+out within 3 days)     round_trips = detect_round_trips(bank_statements, window_days=3)      # Step 6: Bounce count     bounces = sum(1 for stmt in bank_statements                   for t in stmt["transactions"]                   if "BOUNCE" in t.get("narration","").upper()                   or "RETURN" in t.get("narration","").upper())      verdict = "OK"     if divergence > 0.30 or inflation_flag: verdict = "INFLATION_SUSPECTED"     elif divergence > 0.15: verdict = "MISMATCH"      return {         "bank_credit_turnover":  round(bank_credit_total, 2),         "gst_reported_turnover": round(gst_turnover, 2),         "itr_reported_income":   itr_income,         "turnover_divergence_pct": round(divergence * 100, 2),         "revenue_inflation_flag": inflation_flag,         "round_trip_transactions": round_trips,         "bounce_count_last_12m": bounces,         "reconciliation_verdict": verdict     }
+GAP 2: MCA Filing Ingestion (NEW Pipeline)
+PS lists MCA filings as External Intelligence. Weaviate had MCAFiling class but no ingestion logic. Formalized below.
+# mca-agent/mca_pipeline.py import requests, time  MCA_SEARCH_URL = "https://www.mca.gov.in/mcafoportal/viewCompanyMasterData.do"  def fetch_mca_data(cin: str, company_name: str) -> dict:     # Primary: MCA21 REST API (if available at hackathon)     # Fallback: Surepass MCA API  OR  pre-seeded Weaviate snapshot      try:         # Surepass MCA Director API         resp = requests.post(             "https://kyc-api.surepass.io/api/v1/company-details/mca-basic",             json={"id_number": cin},             headers={"Authorization": f"Bearer {SUREPASS_TOKEN}"},             timeout=10         )         data = resp.json().get("data", {})         return {             "company_status":          data.get("company_status", "UNKNOWN"),             "director_changes_last_2yr": extract_director_changes(data),             "charges_registered":       data.get("charges", []),             "new_charge_flag":          has_new_charge(data),             "last_agm_date":            data.get("last_agm_date",""),             "defaulter_flag":           data.get("in_defaulter_list", False)         }     except Exception as e:         # Fallback: Query Weaviate MCAFiling collection         return query_mca_from_weaviate(company_name)  def extract_director_changes(data: dict) -> list:     directors = data.get("directors", [])     from datetime import datetime, timedelta     cutoff = datetime.now() - timedelta(days=730)     return [         {"din": d["din"], "name": d["name"], "change_type": d.get("change_type","APPOINTMENT"),          "date": d.get("date", "")}         for d in directors         if d.get("date") and datetime.strptime(d["date"],"%Y-%m-%d") > cutoff     ]
+GAP 3: Feature Normalization Documentation
+Risk weight documentation existed but normalization bounds, outlier clipping, and data range assumptions were undefined. All defined in Section 2.1 above. Add outlier handling below.
+# risk-agent/outlier_handler.py  def handle_outlier(feature_name: str, raw_value: float) -> float:     # Clip to [mean ± 3σ] for training data. Hardcoded safe bounds for production.     SAFE_BOUNDS = {         "dscr":   (0.0, 5.0),         "leverage": (0.0, 20.0),         "revenue_growth": (-1.0, 5.0),         "ccc": (-365, 365)     }     lo, hi = SAFE_BOUNDS.get(feature_name, (-1e9, 1e9))     if raw_value < lo or raw_value > hi:         # Log outlier for Monitor Agent         print(f"OUTLIER DETECTED: {feature_name}={raw_value}, clipping to [{lo},{hi}]")     return max(lo, min(hi, raw_value))
+GAP 4: Decision Confidence Formula
+Formula now formally defined in Section 2.3. Judge-ready answer: DC = 0.30×data_completeness + 0.30×extraction_confidence + 0.20×kb_freshness + 0.20×model_stability. Each component explained in Section 2.3.
+──────────────────────────────────────────────────────────────────────────────────────────
+5.  PHASE-WISE EXECUTION PLAN  (DAY-BY-DAY TO MARCH 10)
+Day
+Phase
+Task Owner
+Goal / Deliverable
+Day 1 (Mar 4)
+0 — Setup
+ALL
+Docker running. GitHub repo structure created. UCSO schema v2.0 finalised and committed. docker-compose.yml with all services. Everyone can run docker-compose up.
+Day 1 (Mar 4)
+1 — Foundation
+Sankalp
+Spring Boot: UcsoEntity, UcsoService (PATCH namespace), Kafka producer, WebSocket broadcaster, File upload to MinIO. All REST endpoints working.
+Day 1 (Mar 4)
+1 — Foundation
+Devraj
+React: ApplicationForm, FileUpload, WebSocketContext, LiveAgentFeed skeleton working. Can submit application and see it in Postgres.
+Day 2 (Mar 5)
+2 — Core AI
+Ankit
+Compliance Agent + Doc Intelligence Agent: PDF parsing (pdfplumber + Tesseract), Indian number normalization, field extraction with confidence+provenance. Financials namespace populated.
+Day 2 (Mar 5)
+2 — Core AI
+Utkarsh
+Weaviate schema setup. Pre-load RBI circulars and sample MCA data. Web Agent framework with KB query + sentiment scoring. Model Selector Agent skeleton.
+Day 3 (Mar 6)
+2 — Core AI
+Ankit
+GST Agent: GSTR-2B vs 3B discrepancy. networkx circular trade graph. Bank Reconciliation Agent: bank_credit_turnover vs gst_turnover. Revenue inflation flag.
+Day 3 (Mar 6)
+2 — Core AI
+Utkarsh
+MCA Agent: Surepass API integration. Web Agent complete: news scraping + sentiment + Weaviate storage. Surepass eCourt litigation API.
+Day 3 (Mar 6)
+3 — Integration
+ALL
+Integration Checkpoint 1: Upload Mehta Textiles demo PDF → Doc Agent → GST Agent → Bank Recon → MCA → Web Agent → UCSO populated → UI shows live updates.
+Day 4 (Mar 7)
+3 — Intelligence
+Utkarsh
+Risk Agent: full normalization + weighted score + SHAP + LIME. Model Selector picking XGBoost. Limit + rate calculation.
+Day 4 (Mar 7)
+3 — Intelligence
+Ankit
+Bias Agent: counterfactual testing on top-3 features. PD Transcript Agent: spaCy NER + risk adjustment + Whisper integration.
+Day 5 (Mar 8)
+3 — Intelligence
+Utkarsh
+CAM Generator: Five Cs structure, evidence citations, corrective actions, CMA projections. Stress Agent: 3 scenarios. EWS Agent skeleton.
+Day 5 (Mar 8)
+4 — UI Polish
+Devraj
+RiskDashboard + SHAP chart + LIME panel. GSTGraph (force-directed). Stress simulator sliders. CAM viewer (mammoth.js). Replay Engine version selector.
+Day 6 (Mar 9)
+4 — Integration
+ALL
+Integration Checkpoint 2: Full end-to-end pipeline with Mehta Textiles. All 13 agents fire. UCSO reaches v13+. CAM downloads. Replay works.
+Day 7 (Mar 10)
+5 — Polish
+ALL
+Bug fixes. PD portal demo. Confidence score display. Demo run × 3. Answers to judge questions rehearsed. README and architecture diagram finalized.
+
+──────────────────────────────────────────────────────────────────────────────────────────
+6.  KAFKA EVENT MAP  (FINAL — ALL 13 AGENTS)
+Topic Name                → Published By          → Consumed By ───────────────────────────────────────────────────────────────── application_created       → Spring Boot           → Compliance Agent docs_uploaded             → Spring Boot           → Doc Intelligence Agent compliance_passed         → Compliance            → Doc Intelligence Agent compliance_failed         → Compliance            → WebSocket (notify user) parsing_completed         → Doc Agent             → GST Agent, Bank Recon Agent gst_completed             → GST Agent             → Web Agent bank_recon_completed      → Bank Recon Agent      → Web Agent mca_completed             → MCA Agent             → Web Agent (parallel) features_ready            → Feature Deriver       → Web Agent web_intel_completed       → Web Agent             → Model Selector pd_submitted              → Spring Boot           → PD Transcript Agent pd_completed              → PD Agent              → Risk Agent (optional enrichment) model_selected            → Model Selector        → Risk Agent risk_generated            → Risk Agent            → Bias Agent, Stress Agent bias_completed            → Bias Agent            → CAM prerequisite counter stress_completed          → Stress Agent          → CAM prerequisite counter cam_prereqs_met (counter=2)→ Spring Boot logic    → CAM Generator Agent cam_generated             → CAM Agent             → EWS Agent, Monitor Agent ews_completed             → EWS Agent             → Monitor Agent (log) ───────────────────────────────────────────────────────────────── agent_status              → ALL agents            → Spring Boot → WebSocket → UI
+⚠  CAM Race Condition Fix: In Spring Boot: on receiving bias_completed OR stress_completed, increment a counter in Postgres (NOT UCSO). When counter == 2, publish cam_prereqs_met. This is the only safe way to prevent CAM starting early.
+⚠  Kafka Consumer Config: Set auto.offset.reset=latest during development. Set enable.auto.commit=false and commit only on successful UCSO update to prevent duplicate processing.
+──────────────────────────────────────────────────────────────────────────────────────────
+7.  MASTER ERROR REGISTRY  (22 CRITICAL ERRORS)
+Owner
+Code
+Error
+Fix
+ALL
+C1
+Full UCSO PUT overwrite
+Use PATCH /namespace/{ns} only. Never PUT full UCSO.
+ALL
+C2
+camelCase/snake_case mismatch
+Configure Spring Boot ObjectMapper: SNAKE_CASE globally. Test on Day 0.
+ALL
+C3
+Docker localhost unreachable
+Use service names: backend:8080, kafka:9092. Not localhost in Docker network.
+ALL
+C4
+UCSO schema version conflict
+Freeze schema Day 0. Any schema change = team sync + version bump.
+Sankalp
+S1
+Kafka duplicate consumer group
+Unique group-id per agent. doc-agent-group, gst-agent-group etc.
+Sankalp
+S2
+WebSocket 64KB frame limit
+setMaxTextMessageBufferSize(512*1024) in WebSocket config.
+Sankalp
+S3
+File upload 1MB limit
+spring.servlet.multipart.max-file-size=50MB in application.yml
+Sankalp
+S4
+Postgres JSONB Hibernate error
+Add hibernate-types-60. @Type(JsonBinaryType.class) on ucso_data field.
+Sankalp
+S5
+CAM counter race condition
+Use atomic DB counter for CAM prerequisites, not UCSO. Publish event only at count==2.
+Ankit
+A1
+Tesseract binary missing
+Dockerfile: RUN apt-get install -y tesseract-ocr tesseract-ocr-eng
+Ankit
+A2
+Indian ₹ number parsing
+normalize_indian_number(): strip ₹, handle lakh/crore commas before float().
+Ankit
+A3
+Empty GST graph
+Check G.number_of_edges() > 0 before nx.simple_cycles(). Return empty list if no edges.
+Ankit
+A4
+Bank statement narration noise
+Filter EXCLUDE_KEYWORDS for inter-account transfers. Do not include in turnover total.
+Ankit
+A5
+Whisper download at demo
+Pre-download: whisper.load_model('base'). Cache at ~/.cache/whisper/ before hackathon.
+Utkarsh
+U1
+SHAP+XGBoost version mismatch
+Pin: xgboost==2.0.3 shap==0.44.0 in requirements.txt
+Utkarsh
+U2
+LIME non-determinism
+Set random_state=42 in LimeTabularExplainer. Always.
+Utkarsh
+U3
+Weaviate class already exists
+Check schema.exists() before create. Wrap in try/except.
+Utkarsh
+U4
+MCA API auth failure
+Pre-seed Weaviate with 1-week-old MCA snapshot as fallback. Always have DEMO_MODE=true option.
+Utkarsh
+U5
+CAM python-docx empty file
+Check cam.docx file size > 5KB before S3 upload. Retry once on failure.
+Utkarsh
+U6
+Model .pkl not found in S3
+try/except on model load. Fallback to RULE_FALLBACK. Never crash workflow.
+Devraj
+D1
+CORS blocking
+@CrossOrigin on all controllers OR global CorsConfiguration bean.
+Devraj
+D2
+WebSocket disconnect on re-render
+Store STOMP client in React Context using useRef, not useState.
+
+──────────────────────────────────────────────────────────────────────────────────────────
+8.  FEATURE PRIORITY MATRIX
+MUST HAVE (Evaluation-Critical)
+SHOULD HAVE (Differentiator)
+NICE TO HAVE (Bonus)
+
+• PDF parsing: digital+scanned
+• GST 2B vs 3B reconciliation
+• Bank stmt reconciliation
+• Revenue inflation detection
+• Circular trade graph
+• MCA filing ingestion
+• Surepass eCourt litigation
+• CAM: Five Cs + evidence
+• SHAP explainability
+• Limit + rate calculation
+• Indian number/context handling
+• PD notes portal
+
+• LIME case-specific explanation
+• Bias counterfactual check
+• Stress simulator (3 scenarios)
+• PD Whisper audio
+• Decision confidence score
+• Replay Engine
+• Rejection corrective actions
+• EWS monitoring
+• Weaviate semantic scoring
+• News sentiment VADER
+
+• CMA 3-year projections
+• Account Aggregator mention
+• Temporal workflow UI
+• Prometheus/Grafana
+• CIBIL report parsing
+• Shareholding pattern extraction
+• Board meeting minutes NER
+
+──────────────────────────────────────────────────────────────────────────────────────────
+9.  DEMO PREPARATION  (March 10)
+Demo Company: Mehta Textiles Pvt Ltd
+GSTIN: 27AADCM1234F1ZY | PAN: AADCM1234F | CIN: U17100MH2010PTC123456
+Financials: Revenue ₹45Cr, EBITDA ₹6.5Cr, Debt ₹28Cr → DSCR≈1.15 (borderline)
+Bank: Credit turnover ₹52Cr vs GST turnover ₹45Cr → 15.5% divergence (MISMATCH verdict)
+GST: 12% 2B-3B discrepancy + 3-party circular cycle
+MCA: 1 director change in last 18 months, 1 new charge of ₹8Cr
+News: 'Textile sector import duty headwinds 2025' + minor court case (low severity)
+PD: 'Factory at 70% capacity. Expansion planned Q3. No succession plan disclosed.'
+Why borderline: System shows full logic chain not just auto-approve = judges see everything
+5-Minute Demo Script
+Time
+Speaker
+Show
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+0:00–0:30
+Any
+Problem: Indian banks take 3 weeks. Trinetra does it in 3 minutes.
+0:30–1:30
+Devraj
+Submit form → upload PDFs → Live Agent Feed lights up: Compliance → Doc → GST → Bank Recon → MCA → Web
+1:30–2:30
+Utkarsh
+SHAP chart: DSCR +25%, Leverage +18%, Bank Mismatch +12%. LIME: 'For Mehta, bank divergence drove 12% of rejection score'
+2:30–3:15
+Ankit
+GST graph: 3-party circular cycle highlighted. Bias Agent: 'Remove litigation → DSCR alone would APPROVE'
+3:15–4:00
+Devraj
+Stress: Revenue -20% → DSCR drops from 1.15 to 0.88 → VULNERABLE. Combined scenario → CRITICAL
+4:00–5:00
+Any
+Open CAM: Five Cs, every number cited with page. Replay: rewind to v3 before web agent ran. Confidence score: 0.78
+
+Judge Q&A — Prepared Answers
+Q1: Q: How is bank reconciliation different from GST reconciliation? A: GST reconciliation checks ITC claims (tax side). Bank reconciliation checks revenue inflation (turnover side). Both cross-validate the same company from different angles.
+Q2: Q: What is circular trading exactly? A: A sells to B, B sells to C, C sells back to A — inflating revenue with no real business. We detect this using directed graph cycles in transaction data.
+Q3: Q: How do you rank news relevance? A: We embed articles using all-MiniLM-L6-v2 (384d vectors), query Weaviate with cosine similarity threshold 0.75. Articles below 0.75 similarity are discarded regardless of content.
+Q4: Q: How is confidence score calculated? A: DC = 0.30×data_completeness + 0.30×extraction_confidence + 0.20×kb_freshness + 0.20×model_stability. Every component is a 0-1 number with defined formulas.
+──────────────────────────────────────────────────────────────────────────────────────────
+END OF FINAL EXECUTION PLAN v3.0
+This document is the complete, gap-fixed, PS-aligned execution blueprint for Team Trinetra. All 4 critical gaps are addressed. All 13 agents are defined. All errors are pre-catalogued. Build sequence is locked to March 10 deadline.
+HINGLISH: Ab koi gap nahi hai. Bank reconciliation hai. MCA parsing hai. Maths define hai. Confidence formula hai. Weaviate scoring pipeline hai. Yeh document freeze karo. UCSO schema Day 1 pe sign-off karo. Phir sirf execute karo. All the best Team Trinetra! 🕉

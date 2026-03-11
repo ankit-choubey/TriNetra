@@ -1,0 +1,148 @@
+{
+  "application_id": "REAL-TEST-20260304-155229",
+  "loan_requested": 50000000000.0,
+  "applicant": {
+    "company_name": "Samsung Electronics Co., Ltd.",
+    "pan": "AABCT0000A",
+    "promoter_name": "Applicant",
+    "sector": "general"
+  },
+  "documents": {
+    "files": [
+      {
+        "doc_type": "ANNUAL_REPORT",
+        "local_path": "/Users/utkarshsingh/Desktop/Trinetra/2024_con_quarter01_all.pdf",
+        "status": "UPLOADED"
+      }
+    ]
+  },
+  "financials": {
+    "revenue_annual": [
+      40000000,
+      50000000
+    ],
+    "ebitda_annual": [
+      6800000,
+      8000000
+    ],
+    "total_debt": 15000000,
+    "net_worth": 25000000,
+    "interest_expense": 1800000,
+    "principal_repayment": 3000000,
+    "promoter_holding_pct": 65.0,
+    "cibil_score": 750,
+    "current_assets": 30000000,
+    "current_liabilities": 18000000
+  },
+  "compliance": {
+    "status": "PARTIAL",
+    "docs_uploaded": [
+      "ANNUAL_REPORT"
+    ],
+    "missing_documents": [
+      "GST_RETURN",
+      "ITR",
+      "BANK_STMT"
+    ]
+  },
+  "gst_analysis": {
+    "gstr2b_vs_3b_discrepancy_pct": 5.88,
+    "itc_mismatch_flag": false,
+    "circular_trade_index": 0.0,
+    "suspicious_cycles": [],
+    "reconciliation_status": "OK"
+  },
+  "bank_reconciliation": {
+    "annual_credit_turnover": 47500000.0,
+    "turnover_divergence_pct": 5.0,
+    "revenue_inflation_flag": false,
+    "reconciliation_verdict": "PASS"
+  },
+  "mca_intelligence": {
+    "company_status": "ACTIVE",
+    "defaulter_flag": false,
+    "source": "SUREPASS_API"
+  },
+  "web_intel": {
+    "promoter_news": [],
+    "litigation_records": [],
+    "sector_headwinds": [],
+    "kb_freshness_hours": 0,
+    "source": "SIMULATED (no Weaviate running)"
+  },
+  "pd_intelligence": {
+    "transcript_text": "The promoter of Samsung Electronics Co., Ltd. has been in business for over 5 years. Revenue has shown consistent growth. The management appears transparent and has a succession plan in place with a co-founder.",
+    "risk_adjustment": 0.0,
+    "key_findings": {
+      "succession_risk": 0.5,
+      "capacity_risk": 0.5,
+      "integrity_risk": 0.5,
+      "overall_risk_adjustment": 0.0,
+      "qualitative_flags": [
+        "LLM_FAIL: 400 Client Error: Bad Request for url: https://api.groq.com/openai/v1/chat/completions"
+      ],
+      "entities_extracted": {},
+      "confidence": 0.0,
+      "reasoning": "LLM evaluation failed: 400 Client Error: Bad Request for url: https://api.groq.com/openai/v1/chat/completions"
+    },
+    "source": "GROQ_LLM"
+  },
+  "derived_features": {
+    "dscr": 1.6667,
+    "icr": 4.4444,
+    "leverage": 0.6,
+    "current_ratio": 1.6667,
+    "revenue_growth_yoy": 0.25,
+    "ebitda_margin": 0.16,
+    "cibil_score": 750,
+    "promoter_holding_pct": 65.0,
+    "gst_discrepancy_pct": 5.88,
+    "bank_divergence_pct": 5.0,
+    "web_sentiment_avg": 0.3
+  },
+  "risk": {
+    "model_used": "RULE_FALLBACK",
+    "score": 0.2845,
+    "band": "LOW",
+    "decision": "APPROVED",
+    "recommended_limit": 41465000000.0,
+    "recommended_rate_bps": 963.8
+  },
+  "bias_checks": {
+    "counterfactual_tested": true,
+    "flip_features": []
+  },
+  "stress_results": {
+    "scenarios": [
+      {
+        "name": "Revenue-20%",
+        "dscr": 1.3333,
+        "verdict": "SURVIVES"
+      },
+      {
+        "name": "Rate+2%",
+        "dscr": 1.5504,
+        "verdict": "SURVIVES"
+      },
+      {
+        "name": "Combined",
+        "dscr": 1.2403,
+        "verdict": "VULNERABLE"
+      }
+    ],
+    "worst_case_dscr": 1.2403,
+    "survival_verdict": "VULNERABLE"
+  },
+  "cam_output": {},
+  "decision_confidence": {
+    "score": 0.82,
+    "formula": "0.4*model + 0.3*doc + 0.2*recon + 0.1*web"
+  },
+  "human_notes": {
+    "raw_text": "The promoter of Samsung Electronics Co., Ltd. has been in business for over 5 years. Revenue has shown consistent growth. The management appears transparent and has a succession plan in place with a co-founder."
+  },
+  "audit_log": [],
+  "ews_monitoring": {
+    "risk_drift": 0.0
+  }
+}

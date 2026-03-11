@@ -1,0 +1,181 @@
+{
+    "ucso_version": 1,
+    "application_id": "uuid",
+    "applicant": {
+        "company_name": "",
+        "pan": "",
+        "gstin": "",
+        "cin": "",
+        "loan_amount_requested": 0,
+        "loan_purpose": "",
+        "industry_sector": ""
+    },
+    "compliance": {
+        "status": "PENDING",
+        "missing_documents": [],
+        "checked_at": ""
+    },
+    "documents": {
+        "files": [
+            {
+                "doc_id": "uuid",
+                "type": "ANNUAL_REPORT",
+                "s3_key": "",
+                "parsed": false,
+                "confidence": 0.0,
+                "extracted_fields": {},
+                "provenance": {
+                    "page": 0,
+                    "section": ""
+                },
+                "parse_errors": []
+            }
+        ]
+    },
+    "financials": {
+        "revenue_annual": [],
+        "ebitda_annual": [],
+        "net_profit_annual": [],
+        "total_debt": 0,
+        "net_worth": 0,
+        "interest_expense": 0,
+        "principal_repayment": 0,
+        "itr_taxable_income": 0,
+        "advance_tax_paid": 0,
+        "promoter_holding_pct": 0.0,
+        "pledged_shares_pct": 0.0,
+        "cibil_score": 0,
+        "cibil_overdue_amt": 0,
+        "cibil_dpd_months": 0
+    },
+    "derived_features": {
+        "dscr": 0.0,
+        "dscr_normalized": 0.0,
+        "icr": 0.0,
+        "icr_normalized": 0.0,
+        "leverage": 0.0,
+        "leverage_normalized": 0.0,
+        "ccc": 0,
+        "ccc_normalized": 0.0,
+        "revenue_growth": 0.0,
+        "revenue_growth_normalized": 0.0,
+        "ebitda_margin": 0.0,
+        "ebitda_margin_normalized": 0.0,
+        "revenue_volatility": 0.0
+    },
+    "gst_analysis": {
+        "gstr2b_vs_3b_discrepancy_pct": 0.0,
+        "circular_trade_index": 0.0,
+        "suspicious_cycles": [],
+        "reconciliation_status": "PENDING",
+        "itc_mismatch_flag": false
+    },
+    "bank_reconciliation": {
+        "bank_credit_turnover": 0.0,
+        "gst_reported_turnover": 0.0,
+        "itr_reported_income": 0.0,
+        "turnover_divergence_pct": 0.0,
+        "revenue_inflation_flag": false,
+        "round_trip_transactions": [],
+        "avg_monthly_balance": 0.0,
+        "bounce_count_last_12m": 0,
+        "reconciliation_verdict": "PENDING"
+    },
+    "mca_intelligence": {
+        "company_status": "UNKNOWN",
+        "director_changes_last_2yr": [],
+        "charges_registered": [],
+        "new_charge_flag": false,
+        "director_din_list": [],
+        "last_agm_date": "",
+        "defaulter_flag": false
+    },
+    "pan_intelligence": {
+        "status": "PENDING",
+        "full_name": "",
+        "pan_status": "",
+        "aadhaar_seeding_status": "",
+        "last_updated": ""
+    },
+    "web_intel": {
+        "promoter_news": [],
+        "litigation_records": [],
+        "regulatory_flags": [],
+        "sector_headwinds": [],
+        "kb_query_timestamp": "",
+        "kb_freshness_hours": 0
+    },
+    "pd_intelligence": {
+        "transcript_text": "",
+        "source_type": "TEXT",
+        "entities_extracted": {},
+        "qualitative_flags": [],
+        "risk_adjustment": 0.0,
+        "pd_confidence": 0.0
+    },
+    "risk": {
+        "score": 0.0,
+        "band": "PENDING",
+        "model_used": "",
+        "model_version": "",
+        "feature_vector": {},
+        "shap_values": {},
+        "lime_explanation": {},
+        "top_risk_factors": [],
+        "decision": "PENDING",
+        "recommended_limit": 0,
+        "recommended_rate_bps": 0.0,
+        "rejection_reasons": [],
+        "corrective_actions": []
+    },
+    "bias_checks": {
+        "counterfactual_tested": false,
+        "flip_features": [],
+        "overweight_flags": []
+    },
+    "stress_results": {
+        "scenarios": [
+            {
+                "name": "Revenue-20%",
+                "dscr": 0.0,
+                "verdict": ""
+            },
+            {
+                "name": "Rate+2%",
+                "dscr": 0.0,
+                "verdict": ""
+            },
+            {
+                "name": "Combined",
+                "dscr": 0.0,
+                "verdict": ""
+            }
+        ],
+        "worst_case_dscr": 0.0,
+        "survival_verdict": "PENDING"
+    },
+    "ews_monitoring": {
+        "enabled": false,
+        "last_checked": "",
+        "flags": [],
+        "risk_drift": 0.0
+    },
+    "decision_confidence": {
+        "score": 0.0,
+        "data_completeness": 0.0,
+        "extraction_confidence": 0.0,
+        "kb_freshness_score": 0.0,
+        "model_stability_score": 0.0,
+        "formula": "0.30*data_completeness + 0.30*extraction_confidence + 0.20*kb_freshness + 0.20*model_stability"
+    },
+    "cam_output": {
+        "s3_key": "",
+        "cma_s3_key": "",
+        "generated_at": "",
+        "five_cs": {}
+    },
+    "human_notes": {
+        "notes": []
+    },
+    "audit_log": []
+}
