@@ -3,7 +3,7 @@
 # ║  TRINETRA — Agent Supervisor with Auto-Restart          ║
 # ╚══════════════════════════════════════════════════════════╝
 
-PYTHON_EXE="/Library/Frameworks/Python.framework/Versions/3.13/bin/python3"
+PYTHON_EXE="$SCRIPT_DIR/venv/bin/python3"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR/.." 
 
@@ -24,21 +24,12 @@ typeset -A PROCESS_PIDS
 mkdir -p agents/logs
 mkdir -p backend/logs
 
-start_backend() {
-    if [ -f "backend/main.py" ]; then
-        $PYTHON_EXE "backend/main.py" >> "backend/logs/backend.log" 2>&1 &
-        PROCESS_PIDS[backend]=$!
-        echo "  🚀 Started backend (PID: ${PROCESS_PIDS[backend]})"
-    else
-        echo "  ❌ backend/main.py not found!"
-    fi
-}
 
 start_agent() {
     local agent=$1
     if [ -d "agents/$agent" ]; then
         cd "agents/$agent"
-        $PYTHON_EXE main.py >> "../logs/${agent}.log" 2>&1 &
+        "$SCRIPT_DIR/venv/bin/python3" main.py >> "$SCRIPT_DIR/logs/${agent}.log" 2>&1 &
         PROCESS_PIDS[$agent]=$!
         cd ../..
         echo "  🚀 Started ${agent} (PID: ${PROCESS_PIDS[$agent]})"
@@ -63,8 +54,6 @@ cleanup() {
 }
 trap cleanup INT TERM
 
-echo "🚀 Starting Backend..."
-start_backend
 
 echo "🚀 Starting all agents..."
 for agent in "${AGENTS[@]}"; do
@@ -76,10 +65,6 @@ echo "🔄 Monitoring... (Check agents/watchdog.log for details)"
 
 while true; do
     sleep 10
-    if ! is_alive "${PROCESS_PIDS[backend]}"; then
-        echo "  ⚠️  Backend died — restarting..."
-        start_backend
-    fi
     for agent in "${AGENTS[@]}"; do
         if ! is_alive "${PROCESS_PIDS[$agent]}"; then
             echo "  ⚠️  ${agent} died — restarting..."

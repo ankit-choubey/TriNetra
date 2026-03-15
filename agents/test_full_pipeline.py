@@ -373,9 +373,9 @@ def run_pipeline():
     ]
     for name, rev_shock, rate_shock in configs:
         dscr = stress_mod.compute_stressed_dscr(
-            revenue, ebitda_margin, fin["interest_expense"],
+            revenue, max(0, revenue - ebitda), fin["interest_expense"],
             fin.get("principal_repayment", 0),
-            revenue_shock=rev_shock, rate_shock_pct=rate_shock,
+            revenue_shock=rev_shock, rate_shock_bps=rate_shock * 10000,
         )
         verdict = stress_mod.assign_stress_verdict(dscr)
         scenarios.append({"name": name, "dscr": dscr, "verdict": verdict})

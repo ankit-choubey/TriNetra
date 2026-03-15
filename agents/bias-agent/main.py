@@ -59,6 +59,99 @@ def recompute_score(features: dict) -> float:
     return round(min(1.0, max(0.0, score + pd_adj)), 4)
 
 
+def compute_decision_confidence(ucso: dict) -> dict:
+    """
+    Compute overall Decision Confidence score.
+
+    Formula (from UCSO schema):
+        score = 0.30 * data_completeness
+              + 0.30 * extraction_confidence
+              + 0.20 * kb_freshness
+              + 0.20 * model_stability
+
+    Components:
+        data_completeness   — fraction of expected financial fields that are non-zero
+        extraction_confidence — avg doc parse confidence from documents.files[]
+        kb_freshness        — 1.0 if Weaviate KB is fresh (or not used), 0.5 if stale
+        model_stability     — 1.0 for trained models (LOGISTIC/XGBOOST/LGBM), 0.85 for RULE_FALLBACK
+    """
+    # ── Component 1: Data Completeness ──
+    financials = ucso.get("financials", {})
+    applicant  = ucso.get("applicant", {})
+
+    expected_financial_fields = [
+        "revenue_annual", "ebitda_annual", "net_profit_annual",
+        "total_debt", "net_worth", "interest_expense",
+    ]
+    filled_financial = sum(
+        1 for f in expected_financial_fields
+        if financials.get(f) not in (None, 0, 0.0, [], "")
+    )
+    expected_applicant_fields = ["company_name", "pan", "cin", "loan_amount_requested"]
+    filled_applicant = sum(
+        1 for f in expected_applicant_fields
+        if applicant.get(f) not in (None, 0, 0.0, "", "N/A")
+    )
+    total_expected = len(expected_financial_fields) + len(expected_applicant_fields)
+    total_filled   = filled_financial + filled_applicant
+    data_completeness = round(total_filled / max(total_expected, 1), 4)
+
+    # ── Component 2: Extraction Confidence ──
+    files = ucso.get("documents", {}).get("files", [])
+    if files:
+        confidences = [f.get("confidence", 0.5) for f in files]
+        extraction_confidence = round(sum(confidences) / len(confidences), 4)
+    else:
+        extraction_confidence = 0.5  # neutral default if no docs parsed yet
+
+    # ── Component 3: KB Freshness ──
+    # Weaviate is optional — if not running, default to 1.0 (doesn't penalize)
+    kb_hours = ucso.get("web_intel", {}).get("kb_freshness_hours", 0)
+    if kb_hours == 0:
+        kb_freshness = 1.0  # Not used / not applicable
+    elif kb_hours <= 24:
+        kb_freshness = 1.0
+    elif kb_hours <= 168:  # 1 week
+        kb_freshness = 0.75
+    else:
+        kb_freshness = 0.5
+
+    # ── Component 4: Model Stability ──
+    model_used = ucso.get("risk", {}).get("model_used", "")
+    stability_map = {
+        "LOGISTIC":      1.0,
+        "XGBOOST":       1.0,
+        "LGBM":          1.0,
+        "RULE_FALLBACK": 0.85,
+    }
+    model_stability = stability_map.get(model_used.upper() if model_used else "", 0.85)
+
+    # ── Final Score ──
+    score = round(
+        0.30 * data_completeness
+        + 0.30 * extraction_confidence
+        + 0.20 * kb_freshness
+        + 0.20 * model_stability,
+        4,
+    )
+
+    formula_str = (
+        f"0.30×{data_completeness:.2f}(completeness) "
+        f"+ 0.30×{extraction_confidence:.2f}(extraction) "
+        f"+ 0.20×{kb_freshness:.2f}(kb_freshness) "
+        f"+ 0.20×{model_stability:.2f}(model_stability)"
+    )
+
+    return {
+        "score": score,
+        "data_completeness": data_completeness,
+        "extraction_confidence": extraction_confidence,
+        "kb_freshness": kb_freshness,
+        "model_stability": model_stability,
+        "formula": formula_str,
+    }
+
+
 class BiasAgent(AgentBase):
     AGENT_NAME = "bias-agent"
     LISTEN_TOPICS = ["risk_generated"]
@@ -154,6 +247,27 @@ class BiasAgent(AgentBase):
                 "flip_features": [],
                 "overweight_flags": [],
             }
+
+        finally:
+            # ── Decision Confidence (always computed, non-blocking) ──
+            # Runs whether bias succeeded or failed. Separate PATCH so
+            # any error here CANNOT affect bias_checks or bias_completed event.
+            try:
+                conf = compute_decision_confidence(ucso)
+                self.ucso_client.patch_namespace(
+                    application_id, "decision_confidence", conf
+                )
+                self.logger.info(
+                    f"Decision confidence for {application_id}: {conf['score']:.4f} "
+                    f"(completeness={conf['data_completeness']:.2f}, "
+                    f"extraction={conf['extraction_confidence']:.2f})",
+                    extra={"agent_name": self.AGENT_NAME, "application_id": application_id},
+                )
+            except Exception as conf_err:
+                self.logger.warning(
+                    f"Decision confidence compute failed (non-blocking): {conf_err}",
+                    extra={"agent_name": self.AGENT_NAME, "application_id": application_id},
+                )
 
 
 if __name__ == "__main__":

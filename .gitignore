@@ -57,3 +57,9 @@ watchdog.log
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Project Specific
+*.pdf
+*_result.json
+real_test_*.pdf
+cam_report_*.docx
